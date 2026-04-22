@@ -18,7 +18,7 @@ class PublicProductController extends Controller
             'brand',
             'images' => fn ($q) => $q->orderBy('sort_order'),
             'variants' => fn ($q) => $q->where('is_available', true)->with('size'),
-        ]);
+        ])->loadCount('variants');
 
         // "You May Also Like" — same category, not same product
         $related = Product::where('category_id', $product->category_id)
@@ -48,6 +48,7 @@ class PublicProductController extends Controller
                 'is_maternity_friendly'  => $product->is_maternity_friendly,
                 'is_big_size_friendly'   => $product->is_big_size_friendly,
                 'requires_dress_or_clutch' => $product->requires_dress_or_clutch,
+                'has_configured_variants' => $product->variants_count > 0,
                 'category_name'          => $product->category?->name,
                 'brand_name'             => $product->brand?->name,
                 'images'                 => $product->images->map(fn ($img) => [

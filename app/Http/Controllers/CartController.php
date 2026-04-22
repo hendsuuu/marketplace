@@ -6,10 +6,13 @@ use App\Http\Requests\Storefront\AddToCartRequest;
 use App\Http\Requests\Storefront\UpdateCartItemRequest;
 use App\Models\Cart;
 use App\Models\CartItem;
+use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Services\Shipping\ApiCoIdShippingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use RuntimeException;
@@ -111,11 +114,7 @@ class CartController extends Controller
 
     public function store(AddToCartRequest $request): RedirectResponse
     {
-        $variant = ProductVariant::query()
-            ->with('product.category.parent')
-            ->where('is_available', true)
-            ->findOrFail($request->integer('product_variant_id'));
-
+        $variant = $this->resolveVariantForCart($request);
         $product = $variant->product;
 
         if (! $product || ! $product->is_active || $variant->stock < 1) {
@@ -172,6 +171,54 @@ class CartController extends Controller
                     ->orWhereHas('parent', fn ($parent) => $parent->where('slug', 'dress'));
             })
             ->exists();
+    }
+
+    private function resolveVariantForCart(AddToCartRequest $request): ProductVariant
+    {
+        $variantId = $request->integer('product_variant_id');
+
+        if ($variantId > 0) {
+            return ProductVariant::query()
+                ->with('product.category.parent')
+                ->where('is_available', true)
+                ->findOrFail($variantId);
+        }
+
+        $product = Product::query()
+            ->with(['category.parent'])
+            ->findOrFail($request->integer('product_id'));
+
+        if ($product->variants()->exists()) {
+            throw ValidationException::withMessages([
+                'product_variant_id' => 'Pilih varian produk yang tersedia terlebih dahulu.',
+            ]);
+        }
+
+        $variant = $product->variants()->firstOrNew([
+            'sku' => $this->defaultVariantSku($product),
+        ]);
+
+        if (! $variant->exists) {
+            $variant->fill([
+                'stock' => 1,
+                'additional_price' => 0,
+                'is_available' => true,
+            ]);
+        }
+
+        if (! $variant->is_available || $variant->stock < 1) {
+            $variant->is_available = true;
+            $variant->stock = max(1, (int) $variant->stock);
+        }
+
+        $variant->save();
+
+        return $variant->loadMissing('product.category.parent');
+    }
+
+    private function defaultVariantSku(Product $product): string
+    {
+        return Str::upper($product->code.'-DEFAULT');
     }
 
     /**

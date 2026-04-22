@@ -161,29 +161,29 @@ export default function CartIndex({
 
                                 return (
                                     <div key={item.id} className="store-panel overflow-hidden">
-                                        <div className="grid gap-4 p-4 sm:grid-cols-[140px_1fr] sm:p-5">
+                                        <div className="grid grid-cols-[92px_1fr] items-start gap-3 p-3 sm:grid-cols-[112px_1fr] sm:gap-4 sm:p-4 lg:grid-cols-[140px_1fr] lg:p-5">
                                             <div className="overflow-hidden rounded-lg bg-secondary/40">
                                                 {imageUrl ? (
                                                     <img
                                                         src={imageUrl}
                                                         alt={item.product.name}
-                                                        className="h-full w-full object-cover"
+                                                        className="h-[128px] w-full object-cover sm:h-[150px] lg:h-full"
                                                     />
                                                 ) : (
-                                                    <div className="aspect-[3/4] bg-secondary" />
+                                                    <div className="h-[128px] bg-secondary sm:h-[150px] lg:aspect-[3/4] lg:h-full" />
                                                 )}
                                             </div>
 
-                                            <div className="space-y-4">
-                                                <div className="flex flex-wrap items-start justify-between gap-3">
-                                                    <div>
+                                            <div className="space-y-3">
+                                                <div className="flex items-start justify-between gap-2">
+                                                    <div className="min-w-0">
                                                         <p className="store-copy-muted text-xs uppercase tracking-[0.25em]">
                                                             {item.product.category_name}
                                                         </p>
-                                                        <h2 className="mt-1 text-xl font-semibold">
+                                                        <h2 className="mt-1 line-clamp-2 text-base font-semibold leading-snug sm:text-lg lg:text-xl">
                                                             {item.product.name}
                                                         </h2>
-                                                        <p className="store-copy mt-1 text-sm">
+                                                        <p className="store-copy mt-1 text-xs sm:text-sm">
                                                             {item.variant.size_name
                                                                 ? `Ukuran ${item.variant.size_name}`
                                                                 : 'Free size'}
@@ -192,16 +192,16 @@ export default function CartIndex({
                                                     </div>
                                                     <button
                                                         onClick={() => router.delete(`/cart/items/${item.id}`)}
-                                                        className="rounded-md border border-border p-2 text-muted-foreground transition hover:border-destructive hover:text-destructive"
+                                                        className="shrink-0 rounded-md border border-border p-2 text-muted-foreground transition hover:border-destructive hover:text-destructive"
                                                         aria-label="Hapus item"
                                                     >
                                                         <Trash2 className="size-4" />
                                                     </button>
                                                 </div>
 
-                                                <div className="grid gap-3 md:grid-cols-2">
+                                                <div className="grid gap-2 sm:grid-cols-2 sm:gap-3">
                                                     <label className="grid gap-2 text-sm">
-                                                        <span className="font-medium">Mulai sewa</span>
+                                                        <span className="text-xs font-medium sm:text-sm">Mulai sewa</span>
                                                         <input
                                                             type="date"
                                                             value={currentDates.start}
@@ -218,7 +218,7 @@ export default function CartIndex({
                                                         />
                                                     </label>
                                                     <label className="grid gap-2 text-sm">
-                                                        <span className="font-medium">Selesai sewa</span>
+                                                        <span className="text-xs font-medium sm:text-sm">Selesai sewa</span>
                                                         <input
                                                             type="date"
                                                             value={currentDates.end}
@@ -236,14 +236,15 @@ export default function CartIndex({
                                                     </label>
                                                 </div>
 
-                                                <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-secondary/40 px-4 py-3 dark:bg-secondary/65">
-                                                    <div className="store-copy text-sm">
+                                                <div className="flex flex-col gap-3 rounded-lg bg-secondary/40 px-3 py-3 dark:bg-secondary/65 sm:flex-row sm:items-center sm:justify-between sm:px-4">
+                                                    <div className="store-copy text-xs sm:text-sm">
                                                         <p>Sewa {formatIDR(item.pricing.rental)}</p>
                                                         <p>Deposit {formatIDR(item.pricing.deposit)}</p>
                                                     </div>
-                                                    <div className="flex flex-wrap gap-2">
+                                                    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
                                                         <Button
                                                             variant="outline"
+                                                            className="w-full sm:w-auto"
                                                             onClick={() =>
                                                                 router.patch(`/cart/items/${item.id}`, {
                                                                     rental_start_date: currentDates.start,
@@ -254,7 +255,7 @@ export default function CartIndex({
                                                             <CalendarDays className="size-4" />
                                                             Simpan tanggal
                                                         </Button>
-                                                        <span className="inline-flex items-center rounded-md bg-white px-4 py-2 text-sm font-semibold text-primary dark:bg-card">
+                                                        <span className="inline-flex w-full items-center justify-center rounded-md bg-white px-4 py-2 text-sm font-semibold text-primary dark:bg-card sm:w-auto">
                                                             {formatIDR(item.pricing.subtotal)}
                                                         </span>
                                                     </div>

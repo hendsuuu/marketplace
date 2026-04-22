@@ -134,8 +134,8 @@ class CheckoutController extends Controller
         }
 
         return redirect()
-            ->route('checkout.orders.show', $order)
-            ->with('success', 'Pesanan berhasil dibuat. Lanjutkan pembayaran melalui Midtrans sandbox.');
+            ->route('checkout.orders.show', ['order' => $order, 'pay' => 'snap'])
+            ->with('success', 'Pesanan berhasil dibuat. Popup pembayaran Midtrans Snap akan dibuka.');
     }
 
     public function show(Request $request, Order $order): Response
@@ -193,6 +193,7 @@ class CheckoutController extends Controller
                 'snap_js_url' => $this->midtrans->snapJsUrl(),
                 'client_key' => $this->midtrans->clientKey(),
             ],
+            'auto_open_snap' => $request->query('pay') === 'snap',
         ]);
     }
 

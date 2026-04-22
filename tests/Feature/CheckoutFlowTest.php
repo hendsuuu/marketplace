@@ -68,7 +68,7 @@ test('authenticated customer can create checkout order and receive midtrans snap
 
     expect($order)->not->toBeNull();
 
-    $response->assertRedirect(route('checkout.orders.show', $order));
+    $response->assertRedirect(route('checkout.orders.show', ['order' => $order, 'pay' => 'snap']));
 
     expect($order->status)->toBe(OrderStatus::PendingPayment)
         ->and($order->shipping_cost)->toBe(18000)
@@ -81,6 +81,31 @@ test('authenticated customer can create checkout order and receive midtrans snap
         return $request->url() === 'https://app.sandbox.midtrans.com/snap/v1/transactions'
             && data_get($request->data(), 'transaction_details.gross_amount') === 418000;
     });
+});
+
+test('authenticated customer can add product without configured variants to cart', function () {
+    $user = User::factory()->create();
+    $product = seedProductWithoutVariants();
+
+    $response = $this->actingAs($user)->post(route('cart.store'), [
+        'product_id' => $product->id,
+        'rental_start_date' => now()->addDays(2)->toDateString(),
+        'rental_end_date' => now()->addDays(5)->toDateString(),
+    ]);
+
+    $response->assertRedirect(route('cart.index'));
+
+    $variant = ProductVariant::query()
+        ->where('product_id', $product->id)
+        ->first();
+
+    $cartItem = $user->cart()->first()?->items()->with('variant.product')->first();
+
+    expect($variant)->not->toBeNull()
+        ->and($variant?->sku)->toBe('DRS-NOVAR-DEFAULT')
+        ->and($variant?->is_available)->toBeTrue()
+        ->and($cartItem)->not->toBeNull()
+        ->and($cartItem?->variant?->product?->id)->toBe($product->id);
 });
 
 test('midtrans notification updates pending order to payment received', function () {
@@ -221,4 +246,33 @@ function seedCartForCheckout(User $user): Cart
     ]);
 
     return $cart;
+}
+
+function seedProductWithoutVariants(): Product
+{
+    $category = Category::query()->create([
+        'name' => 'Dress Ready',
+        'slug' => 'dress-ready',
+        'type' => 'dress',
+        'sort_order' => 2,
+        'is_active' => true,
+    ]);
+
+    $brand = Brand::query()->create([
+        'name' => 'Lunaria',
+        'slug' => 'lunaria',
+        'is_active' => true,
+    ]);
+
+    return Product::query()->create([
+        'category_id' => $category->id,
+        'brand_id' => $brand->id,
+        'name' => 'Lunaria Signature Dress',
+        'slug' => 'lunaria-signature-dress',
+        'code' => 'DRS-NOVAR',
+        'price' => 275000,
+        'deposit_price' => 100000,
+        'weight_grams' => 1200,
+        'is_active' => true,
+    ]);
 }

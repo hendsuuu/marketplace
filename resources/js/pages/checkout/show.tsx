@@ -1,6 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { AlertCircle, CreditCard, ExternalLink, LoaderCircle, ReceiptText, RefreshCcw, ShieldCheck, Truck } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { AlertCircle, CreditCard, LoaderCircle, ReceiptText, RefreshCcw, ShieldCheck, Truck } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -76,13 +76,16 @@ declare global {
 export default function CheckoutShow({
     order,
     midtrans,
+    auto_open_snap,
 }: {
     order: OrderPayload;
     midtrans: MidtransProps;
+    auto_open_snap: boolean;
 }) {
     const [snapAvailable, setSnapAvailable] = useState(() => typeof window !== 'undefined' && Boolean(window.snap));
     const [syncing, setSyncing] = useState(false);
     const [localMessage, setLocalMessage] = useState<string | null>(null);
+    const autoOpenAttemptedRef = useRef(false);
 
     const canPay = useMemo(
         () =>
@@ -111,7 +114,7 @@ export default function CheckoutShow({
             setSnapAvailable(Boolean(window.snap));
         };
         const handleError = () => {
-            setLocalMessage('Snap.js Midtrans belum berhasil dimuat. Gunakan tombol redirect sandbox sebagai fallback.');
+            setLocalMessage('Snap.js Midtrans belum berhasil dimuat. Coba muat ulang halaman untuk membuka popup pembayaran.');
         };
 
         if (existingScript) {
@@ -137,6 +140,38 @@ export default function CheckoutShow({
         };
     }, [canPay, midtrans.client_key, midtrans.snap_js_url]);
 
+    useEffect(() => {
+        if (!auto_open_snap || !canPay || !snapAvailable || autoOpenAttemptedRef.current) {
+            return;
+        }
+
+        autoOpenAttemptedRef.current = true;
+
+        if (!order.payment.token || !window.snap) {
+            return;
+        }
+
+        const url = new URL(window.location.href);
+
+        if (url.searchParams.has('pay')) {
+            url.searchParams.delete('pay');
+            window.history.replaceState({}, document.title, `${url.pathname}${url.search}${url.hash}`);
+        }
+
+        window.snap.pay(order.payment.token, {
+            onSuccess: () => {
+                setSyncing(true);
+                router.post(`/checkout/orders/${order.id}/refresh`, {}, { preserveScroll: true, onFinish: () => setSyncing(false) });
+            },
+            onPending: () => {
+                setSyncing(true);
+                router.post(`/checkout/orders/${order.id}/refresh`, {}, { preserveScroll: true, onFinish: () => setSyncing(false) });
+            },
+            onError: () => setLocalMessage('Midtrans mengembalikan error pada simulasi pembayaran. Cek status atau coba lagi.'),
+            onClose: () => setLocalMessage('Popup Midtrans ditutup. Anda bisa membuka lagi kapan saja dari halaman ini.'),
+        });
+    }, [auto_open_snap, canPay, order.id, order.payment.token, snapAvailable]);
+
     function refreshStatus() {
         setSyncing(true);
 
@@ -150,19 +185,39 @@ export default function CheckoutShow({
         );
     }
 
-    function payNow() {
+    function clearAutoPayQuery() {
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        const url = new URL(window.location.href);
+
+        if (!url.searchParams.has('pay')) {
+            return;
+        }
+
+        url.searchParams.delete('pay');
+        window.history.replaceState({}, document.title, `${url.pathname}${url.search}${url.hash}`);
+    }
+
+    function openSnap(mode: 'auto' | 'manual' = 'manual') {
         if (!order.payment.token) {
-            setLocalMessage('Token pembayaran Midtrans belum tersedia untuk order ini.');
+            if (mode === 'manual') {
+                setLocalMessage('Token pembayaran Midtrans belum tersedia untuk order ini.');
+            }
 
             return;
         }
 
         if (!window.snap) {
-            setLocalMessage('Snap.js belum siap. Gunakan tombol redirect sandbox atau coba refresh halaman.');
+            if (mode === 'manual') {
+                setLocalMessage('Snap.js belum siap. Coba muat ulang halaman atau buka popup lagi beberapa saat.');
+            }
 
             return;
         }
 
+        clearAutoPayQuery();
         setLocalMessage(null);
 
         window.snap.pay(order.payment.token, {
@@ -230,42 +285,20 @@ export default function CheckoutShow({
 
                             <div className="mt-4 grid gap-4 md:grid-cols-2">
                                 <div className="store-panel-subtle p-4">
-                                    <p className="text-sm font-semibold">Opsi 1: Snap popup</p>
+                                    <p className="text-sm font-semibold">Popup pembayaran Snap</p>
                                     <p className="store-copy mt-2 text-sm leading-6">
-                                        Gunakan popup Midtrans untuk simulasi paling mirip alur live. Setelah selesai, tekan refresh status bila Anda sedang di local environment.
+                                        Popup Snap akan otomatis terbuka setelah order dibuat. Jika tadi tertutup, Anda bisa membukanya lagi dari tombol di bawah ini.
                                     </p>
 
                                     <Button
                                         type="button"
                                         className="mt-4 w-full"
                                         disabled={!canPay || syncing || snapLoading}
-                                        onClick={payNow}
+                                        onClick={() => openSnap('manual')}
                                     >
                                         {(snapLoading || syncing) && <LoaderCircle className="size-4 animate-spin" />}
                                         <CreditCard className="size-4" />
-                                        {snapLoading ? 'Menyiapkan Snap...' : 'Bayar dengan Midtrans Snap'}
-                                    </Button>
-                                </div>
-
-                                <div className="store-panel-subtle p-4">
-                                    <p className="text-sm font-semibold">Opsi 2: Redirect fallback</p>
-                                    <p className="store-copy mt-2 text-sm leading-6">
-                                        Jika Snap.js terblokir atau Anda sedang menguji callback secara manual, gunakan halaman redirect sandbox bawaan Midtrans.
-                                    </p>
-
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        className="mt-4 w-full"
-                                        disabled={!order.payment.redirect_url}
-                                        onClick={() => {
-                                            if (order.payment.redirect_url) {
-                                                window.open(order.payment.redirect_url, '_blank', 'noopener,noreferrer');
-                                            }
-                                        }}
-                                    >
-                                        <ExternalLink className="size-4" />
-                                        Buka halaman redirect sandbox
+                                        {snapLoading ? 'Menyiapkan Snap...' : 'Buka popup pembayaran'}
                                     </Button>
                                 </div>
                             </div>

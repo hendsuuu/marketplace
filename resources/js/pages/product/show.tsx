@@ -34,6 +34,7 @@ type ProductDetail = {
     is_maternity_friendly: boolean;
     is_big_size_friendly: boolean;
     requires_dress_or_clutch: boolean;
+    has_configured_variants: boolean;
     category_name: string | null;
     brand_name: string | null;
     images: ProductImage[];
@@ -61,6 +62,8 @@ export default function ProductShow({
 }) {
     const { auth, flash, errors } = usePage<SharedData & { errors: Record<string, string | undefined> }>().props;
     const defaultVariant = product.variants.find((variant) => variant.is_available) ?? null;
+    const hasAvailableVariants = product.variants.length > 0;
+    const canAddWithoutVariant = !product.has_configured_variants;
 
     const [currentImageIdx, setCurrentImageIdx] = useState(0);
     const [selectedSize, setSelectedSize] = useState<string | null>(defaultVariant?.size_name ?? null);
@@ -89,6 +92,7 @@ export default function ProductShow({
     const addToCartMessage =
         clientCartNotice ??
         errors.product_variant_id ??
+        errors.product_id ??
         errors.rental_start_date ??
         errors.rental_end_date ??
         flash.error ??
@@ -154,8 +158,12 @@ export default function ProductShow({
             return;
         }
 
-        if (!selectedVariant) {
-            setClientCartNotice('Pilih kombinasi ukuran dan warna yang tersedia terlebih dahulu.');
+        if (!selectedVariant && product.has_configured_variants) {
+            setClientCartNotice(
+                hasAvailableVariants
+                    ? 'Pilih kombinasi ukuran dan warna yang tersedia terlebih dahulu.'
+                    : 'Semua varian produk ini sedang tidak tersedia untuk disewa saat ini.',
+            );
 
             return;
         }
@@ -166,7 +174,7 @@ export default function ProductShow({
         router.post(
             '/cart',
             {
-                product_variant_id: selectedVariant.id,
+                ...(selectedVariant ? { product_variant_id: selectedVariant.id } : { product_id: product.id }),
                 rental_start_date: rentalStartDate,
                 rental_end_date: rentalEndDate,
             },
@@ -175,6 +183,7 @@ export default function ProductShow({
                 onError: (formErrors) => {
                     setClientCartNotice(
                         formErrors.product_variant_id ??
+                            formErrors.product_id ??
                             formErrors.rental_start_date ??
                             formErrors.rental_end_date ??
                             'Produk belum bisa dimasukkan ke cart. Cek pilihan dan tanggal sewanya.',
@@ -336,8 +345,18 @@ export default function ProductShow({
                             </div>
                         )}
 
+                        {canAddWithoutVariant && (
+                            <Alert className="border border-primary/15 bg-primary/5 text-primary">
+                                <Info className="size-4" />
+                                <AlertTitle>Langsung bisa ditambahkan ke cart</AlertTitle>
+                                <AlertDescription className="text-primary/90">
+                                    Produk ini tidak memakai pilihan varian, jadi Anda cukup atur tanggal sewa lalu lanjut tambah ke cart.
+                                </AlertDescription>
+                            </Alert>
+                        )}
+
                         <div className="flex gap-3">
-                            <Button className="flex-1" type="button" disabled={!selectedVariant || isAddingToCart} onClick={addToCart}>
+                            <Button className="flex-1" type="button" disabled={(product.has_configured_variants && !selectedVariant) || isAddingToCart} onClick={addToCart}>
                                 <ShoppingBag className="size-4" />
                                 {isAddingToCart ? 'Memproses...' : 'Tambah ke Cart'}
                             </Button>
@@ -354,12 +373,22 @@ export default function ProductShow({
                             </Alert>
                         )}
 
-                        {!addToCartMessage && !selectedVariant && (
+                        {!addToCartMessage && product.has_configured_variants && hasAvailableVariants && !selectedVariant && (
                             <Alert className="border border-amber-200 bg-amber-50 text-amber-900">
                                 <Info className="size-4" />
                                 <AlertTitle>Pilih varian yang tersedia</AlertTitle>
                                 <AlertDescription className="text-amber-900/80">
                                     Kombinasi ukuran dan warna ini belum tersedia. Pilih opsi lain untuk melanjutkan.
+                                </AlertDescription>
+                            </Alert>
+                        )}
+
+                        {!addToCartMessage && product.has_configured_variants && !hasAvailableVariants && (
+                            <Alert variant="destructive" className="border border-destructive/20 bg-destructive/5">
+                                <Info className="size-4" />
+                                <AlertTitle>Varian sedang tidak tersedia</AlertTitle>
+                                <AlertDescription className="text-destructive/90">
+                                    Produk ini punya varian, tetapi belum ada varian aktif yang bisa disewa saat ini.
                                 </AlertDescription>
                             </Alert>
                         )}

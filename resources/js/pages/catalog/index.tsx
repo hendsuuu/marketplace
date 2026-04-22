@@ -1,7 +1,7 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { ChevronDown, ChevronUp, SlidersHorizontal, X } from 'lucide-react';
-import { useState  } from 'react';
-import type {ReactNode} from 'react';
+import { useState } from 'react';
+import type { FormEvent, ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { resolveMediaUrl } from '@/lib/media';
@@ -66,15 +66,34 @@ export default function CatalogIndex({
     filters: Filters;
 }) {
     const [mobileOpen, setMobileOpen] = useState(false);
+    const [searchQuery, setSearchQuery] = useState(filters.search ?? '');
+
+    function collapseMobileFilters() {
+        if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+            setMobileOpen(false);
+        }
+    }
 
     function applyFilter(patch: Partial<Filters>) {
+        collapseMobileFilters();
         router.get(catalog(), { ...filters, ...patch, page: undefined }, { preserveScroll: true, replace: true });
     }
 
     function clearFilter(key: keyof Filters) {
         const next = { ...filters };
         delete next[key];
+
+        if (key === 'search') {
+            setSearchQuery('');
+        }
+
+        collapseMobileFilters();
         router.get(catalog(), next, { replace: true, preserveScroll: true });
+    }
+
+    function submitSearch(event: FormEvent<HTMLFormElement>) {
+        event.preventDefault();
+        applyFilter({ search: searchQuery.trim() || undefined });
     }
 
     const activeFilters = Object.entries(filters).filter(([, value]) => value && value !== 'newest' && value !== '');
@@ -94,14 +113,46 @@ export default function CatalogIndex({
             </section>
 
             <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-                <div className="mb-6 flex items-center justify-between">
+                <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                     <div>
                         <p className="text-sm font-medium text-secondary-foreground">{products.total} produk ditemukan</p>
                     </div>
-                    <Button variant="outline" size="sm" onClick={() => setMobileOpen((value) => !value)} className="flex gap-2 lg:hidden">
-                        <SlidersHorizontal className="size-4" />
-                        Filter
-                    </Button>
+                    <form onSubmit={submitSearch} className="flex w-full flex-col gap-3 lg:w-auto lg:min-w-[440px]">
+                        <div className="flex flex-col gap-2 sm:flex-row">
+                            <div className="flex min-w-0 flex-1 items-center gap-2 rounded-[0.95rem] border border-[rgba(131,98,70,0.18)] bg-white px-3 py-2 shadow-[0_10px_26px_rgba(88,62,43,0.06)]">
+                                <input
+                                    type="search"
+                                    value={searchQuery}
+                                    onChange={(event) => setSearchQuery(event.target.value)}
+                                    placeholder="Cari nama, kode, atau brand"
+                                    className="min-w-0 flex-1 border-0 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+                                />
+                                {searchQuery && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setSearchQuery('');
+                                            applyFilter({ search: undefined });
+                                        }}
+                                        className="rounded-full p-1 text-muted-foreground transition hover:bg-secondary hover:text-foreground"
+                                        aria-label="Hapus pencarian"
+                                    >
+                                        <X className="size-4" />
+                                    </button>
+                                )}
+                            </div>
+
+                            <div className="flex gap-2">
+                                <Button type="submit" className="flex-1 sm:flex-none">
+                                    Cari
+                                </Button>
+                                <Button variant="outline" size="sm" type="button" onClick={() => setMobileOpen((value) => !value)} className="flex gap-2 lg:hidden">
+                                    <SlidersHorizontal className="size-4" />
+                                    Filter
+                                </Button>
+                            </div>
+                        </div>
+                    </form>
                 </div>
 
                 {activeFilters.length > 0 && (
@@ -114,28 +165,21 @@ export default function CatalogIndex({
                                 </button>
                             </Badge>
                         ))}
-                        <button onClick={() => router.get(catalog())} className="text-xs font-medium text-[#6a5140] underline underline-offset-4 hover:text-primary">
+                        <button
+                            onClick={() => {
+                                setSearchQuery('');
+                                collapseMobileFilters();
+                                router.get(catalog());
+                            }}
+                            className="text-xs font-medium text-[#6a5140] underline underline-offset-4 hover:text-primary"
+                        >
                             Reset semua
                         </button>
                     </div>
                 )}
 
-                <div className="flex gap-8">
-                    <aside className={`basis-64 shrink-0 flex-col gap-6 ${mobileOpen ? 'flex' : 'hidden'} lg:flex`}>
-                        <FilterSection title="Cari">
-                            <input
-                                type="search"
-                                defaultValue={filters.search}
-                                placeholder="Nama, kode, atau brand"
-                                className="select-field"
-                                onKeyDown={(event) => {
-                                    if (event.key === 'Enter') {
-                                        applyFilter({ search: (event.target as HTMLInputElement).value });
-                                    }
-                                }}
-                            />
-                        </FilterSection>
-
+                <div className="flex flex-col gap-6 lg:flex-row lg:gap-8">
+                    <aside className={`w-full shrink-0 flex-col gap-4 lg:basis-64 lg:gap-6 ${mobileOpen ? 'flex' : 'hidden'} lg:flex`}>
                         <FilterSection title="Urutkan">
                             <select value={filters.sort ?? 'newest'} onChange={(event) => applyFilter({ sort: event.target.value })} className="select-field">
                                 <option value="newest">Terbaru</option>

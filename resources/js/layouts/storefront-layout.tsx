@@ -1,6 +1,7 @@
 import { Link, router, usePage } from '@inertiajs/react';
-import { useEffect, useRef, useState  } from 'react';
-import type {ReactNode} from 'react';
+import { useEffect, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
+import { cn } from '@/lib/utils';
 import type { SharedData } from '@/types';
 
 function MenuIcon() {
@@ -67,6 +68,8 @@ function BadgeIcon({ count = 0, children }: { count?: number; children: ReactNod
         </div>
     );
 }
+
+type StorefrontCounts = SharedData['storefront'];
 
 const navItems = [
     { label: 'Home', href: '/catalog' },
@@ -219,7 +222,17 @@ function NavDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
     );
 }
 
-function UserMenu({ user, roles }: { user: { name: string; email: string }; roles: string[] }) {
+function UserMenu({
+    user,
+    roles,
+    storefront,
+    compact = false,
+}: {
+    user: { name: string; email: string };
+    roles: string[];
+    storefront: StorefrontCounts;
+    compact?: boolean;
+}) {
     const [open, setOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
     const isAdmin = roles.includes('admin') || roles.includes('superadmin');
@@ -240,7 +253,12 @@ function UserMenu({ user, roles }: { user: { name: string; email: string }; role
         <div ref={menuRef} className="relative">
             <button
                 onClick={() => setOpen((current) => !current)}
-                className="store-ink flex items-center gap-1.5 rounded-md border border-border bg-white px-3 py-1.5 text-sm font-medium transition hover:border-primary/30 hover:bg-secondary dark:bg-card"
+                className={cn(
+                    'store-ink flex items-center gap-1.5 rounded-md border border-border bg-white text-sm font-medium transition hover:border-primary/30 hover:bg-secondary dark:bg-card',
+                    compact ? 'px-2.5 py-2 sm:px-3 sm:py-1.5' : 'px-3 py-1.5',
+                )}
+                aria-haspopup="menu"
+                aria-expanded={open}
             >
                 <span className="hidden max-w-[96px] truncate sm:inline">{user.name.split(' ')[0]}</span>
                 <svg className="h-4 w-4 text-secondary-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
@@ -263,11 +281,35 @@ function UserMenu({ user, roles }: { user: { name: string; email: string }; role
                         <Link href="/settings/profile" onClick={() => setOpen(false)} className="store-ink block rounded-md px-3 py-2 text-sm transition hover:bg-secondary">
                             Profil Saya
                         </Link>
-                        <Link href="/account/wishlist" onClick={() => setOpen(false)} className="store-ink block rounded-md px-3 py-2 text-sm transition hover:bg-secondary">
-                            Wishlist
+                        <Link
+                            href="/account/wishlist"
+                            onClick={() => setOpen(false)}
+                            className="store-ink flex items-center justify-between gap-3 rounded-md px-3 py-2 text-sm transition hover:bg-secondary"
+                        >
+                            <span>Wishlist</span>
+                            <span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-semibold text-secondary-foreground">
+                                {storefront.wishlist_count}
+                            </span>
                         </Link>
-                        <Link href="/cart" onClick={() => setOpen(false)} className="store-ink block rounded-md px-3 py-2 text-sm transition hover:bg-secondary">
-                            Cart
+                        <Link
+                            href="/dashboard"
+                            onClick={() => setOpen(false)}
+                            className="store-ink flex items-center justify-between gap-3 rounded-md px-3 py-2 text-sm transition hover:bg-secondary"
+                        >
+                            <span>Notifikasi</span>
+                            <span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-semibold text-secondary-foreground">
+                                {storefront.unread_notifications_count}
+                            </span>
+                        </Link>
+                        <Link
+                            href="/cart"
+                            onClick={() => setOpen(false)}
+                            className="store-ink flex items-center justify-between gap-3 rounded-md px-3 py-2 text-sm transition hover:bg-secondary"
+                        >
+                            <span>Cart</span>
+                            <span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-semibold text-secondary-foreground">
+                                {storefront.cart_count}
+                            </span>
                         </Link>
                         {isAdmin && (
                             <Link href="/admin/dashboard" onClick={() => setOpen(false)} className="block rounded-lg px-3 py-2 text-sm font-medium text-primary transition hover:bg-secondary">
@@ -316,31 +358,37 @@ function StoreFrontHeader() {
                     </Link>
 
                     <div className="store-ink flex items-center gap-1.5">
-                        <Link href="/catalog" className="rounded-md border border-transparent p-2 text-current transition hover:border-primary/20 hover:bg-secondary hover:text-foreground" aria-label="Search">
+                        <Link
+                            href="/catalog"
+                            className="hidden rounded-md border border-transparent p-2 text-current transition hover:border-primary/20 hover:bg-secondary hover:text-foreground sm:inline-flex"
+                            aria-label="Search"
+                        >
                             <SearchIcon />
                         </Link>
 
                         {auth.user ? (
                             <>
-                                <Link href="/account/wishlist" className="rounded-md border border-transparent p-2 text-current transition hover:border-primary/20 hover:bg-secondary hover:text-foreground" aria-label="Wishlist">
-                                    <BadgeIcon count={storefront.wishlist_count}>
-                                        <HeartIcon />
-                                    </BadgeIcon>
-                                </Link>
-                                <button className="rounded-md border border-transparent p-2 text-current transition hover:border-primary/20 hover:bg-secondary hover:text-foreground" aria-label="Notifications">
-                                    <BellIcon count={storefront.unread_notifications_count} />
-                                </button>
-                                <Link href="/cart" className="rounded-md border border-transparent p-2 text-current transition hover:border-primary/20 hover:bg-secondary hover:text-foreground" aria-label="Cart">
-                                    <CartIcon count={storefront.cart_count} />
-                                </Link>
-                                <UserMenu user={auth.user} roles={auth.roles ?? []} />
+                                <div className="hidden items-center gap-1.5 sm:flex">
+                                    <Link href="/account/wishlist" className="rounded-md border border-transparent p-2 text-current transition hover:border-primary/20 hover:bg-secondary hover:text-foreground" aria-label="Wishlist">
+                                        <BadgeIcon count={storefront.wishlist_count}>
+                                            <HeartIcon />
+                                        </BadgeIcon>
+                                    </Link>
+                                    <Link href="/dashboard" className="rounded-md border border-transparent p-2 text-current transition hover:border-primary/20 hover:bg-secondary hover:text-foreground" aria-label="Notifications">
+                                        <BellIcon count={storefront.unread_notifications_count} />
+                                    </Link>
+                                    <Link href="/cart" className="rounded-md border border-transparent p-2 text-current transition hover:border-primary/20 hover:bg-secondary hover:text-foreground" aria-label="Cart">
+                                        <CartIcon count={storefront.cart_count} />
+                                    </Link>
+                                </div>
+                                <UserMenu user={auth.user} roles={auth.roles ?? []} storefront={storefront} compact />
                             </>
                         ) : (
-                            <div className="hidden items-center gap-2 sm:flex">
-                                <Link href="/login" className="rounded-md border border-border px-4 py-2 text-sm font-medium transition hover:border-primary/30 hover:bg-secondary">
+                            <div className="flex items-center gap-2">
+                                <Link href="/login" className="rounded-md border border-border px-3 py-2 text-sm font-medium transition hover:border-primary/30 hover:bg-secondary sm:px-4">
                                     Masuk
                                 </Link>
-                                <Link href="/register" className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary/90">
+                                <Link href="/register" className="hidden rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 sm:inline-flex">
                                     Daftar
                                 </Link>
                             </div>

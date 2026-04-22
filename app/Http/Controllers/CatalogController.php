@@ -61,13 +61,13 @@ class CatalogController extends Controller
         match ($sort) {
             'price_asc'  => $query->orderBy('price'),
             'price_desc' => $query->orderByDesc('price'),
-            'size_asc'   => $query->join('product_variants', 'products.id', '=', 'product_variants.product_id')
-                ->join('sizes', 'product_variants.size_id', '=', 'sizes.id')
+            'size_asc'   => $query->leftJoin('product_variants', 'products.id', '=', 'product_variants.product_id')
+                ->leftJoin('sizes', 'product_variants.size_id', '=', 'sizes.id')
                 ->orderBy('sizes.sort_order')
                 ->select('products.*')
                 ->distinct(),
-            'size_desc'  => $query->join('product_variants', 'products.id', '=', 'product_variants.product_id')
-                ->join('sizes', 'product_variants.size_id', '=', 'sizes.id')
+            'size_desc'  => $query->leftJoin('product_variants', 'products.id', '=', 'product_variants.product_id')
+                ->leftJoin('sizes', 'product_variants.size_id', '=', 'sizes.id')
                 ->orderByDesc('sizes.sort_order')
                 ->select('products.*')
                 ->distinct(),

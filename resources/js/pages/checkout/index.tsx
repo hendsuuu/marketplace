@@ -248,7 +248,7 @@ export default function CheckoutIndex({
                                 <div className="store-panel-subtle p-4">
                                     <p className="text-sm font-semibold">{payment.gateway_label}</p>
                                     <p className="store-copy mt-1 text-sm leading-6">
-                                        Setelah order dibuat, Anda akan diarahkan ke popup pembayaran Midtrans Snap sandbox untuk simulasi pembayaran.
+                                        Setelah order dibuat, popup pembayaran Midtrans Snap akan langsung muncul agar alur bayar tetap ringkas.
                                     </p>
                                 </div>
                             </div>
